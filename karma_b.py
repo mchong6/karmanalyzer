@@ -2,25 +2,32 @@ import re, praw, requests, os, glob, sys
 from bs4 import BeautifulSoup
 import datetime
 from itertools import chain
+import karma as k
 
 
 MIN_SCORE = 100 # the default minimum score before it is downloaded
-image_limit = 100
+image_limit = 500
 
 
 imgurUrlPattern = re.compile(r'(http://i.imgur.com/(.*))(\?.*)?')
+#make parent directory
+parent_dir = "data"
+if not os.path.exists(parent_dir):
+    os.makedirs(parent_dir)
 
 
-def downloadImage(targetSubreddit, imageUrl, localFileName, count):
+def downloadImage(targetSubreddit, imageUrl, localFileName, count, label, submission):
     #ignore gifs
     if ".gif" in imageUrl:
         return count
     response = requests.get(imageUrl)
     if response.status_code == 200:
         print('Downloading %s...' % (localFileName))
-        with open(targetSubreddit+'/'+localFileName, 'wb') as fo:
+        with open(parent_dir+'/'+targetSubreddit+'/'+localFileName, 'wb') as fo:
             for chunk in response.iter_content(4096):
                 fo.write(chunk)
+            #write to label
+            label.write(str(submission.score)+ ' '+str(get_time(submission)) + '\n')
             return count+1
 
 def get_time(submission):
@@ -35,9 +42,10 @@ r = praw.Reddit(user_agent='test app mine') # Note: Be sure to change the user-a
 
 
 def crawl_sub(targetSubreddit):
+    print "Accessing", targetSubreddit
     #create folder if doesnt exist
-    if not os.path.exists(targetSubreddit):
-        os.makedirs(targetSubreddit)
+    if not os.path.exists(parent_dir+'/'+targetSubreddit):
+        os.makedirs(parent_dir+'/'+targetSubreddit)
 
     #get top submissions
     submissions = r.get_subreddit(targetSubreddit).get_top_from_day(limit=image_limit)
@@ -55,7 +63,7 @@ def crawl_sub(targetSubreddit):
     #print vars(next(submissions))
     stats = []
     count = 1
-    label = open(targetSubreddit+'/'+targetSubreddit+'.txt', 'w')
+    label = open(parent_dir+'/'+targetSubreddit+'/'+targetSubreddit+'.txt', 'w')
     for submission in submissions:
         # Check for all the cases where we will skip a submission:
         if "imgur.com/" not in submission.url:
@@ -81,7 +89,7 @@ def crawl_sub(targetSubreddit):
                     imageFile = imageUrl[imageUrl.rfind('/') + 1:]
                 #name of image
                 localFileName = str(submission.subreddit) + str(count)
-                count  = downloadImage(targetSubreddit, 'http:' + match['href'], localFileName, count)
+                count  = downloadImage(targetSubreddit, 'http:' + match['href'], localFileName, count, label, submission)
 
         elif 'http://i.imgur.com/' in submission.url:
             # The URL is a direct link to the image.
@@ -94,7 +102,7 @@ def crawl_sub(targetSubreddit):
 
             #name of image
             localFileName = str(submission.subreddit) + str(count)
-            count = downloadImage(targetSubreddit, submission.url, localFileName, count)
+            count = downloadImage(targetSubreddit, submission.url, localFileName, count, label, submission)
 
         elif 'http://imgur.com/' in submission.url:
             # This is an Imgur page with a single image.
@@ -115,11 +123,8 @@ def crawl_sub(targetSubreddit):
 
             #name of image
             localFileName = str(submission.subreddit) + str(count)
-            count = downloadImage(targetSubreddit, imageUrl, localFileName, count)
-        else:
-            continue
+            count = downloadImage(targetSubreddit, imageUrl, localFileName, count, label, submission)
 
-        #write to label
-        label.write(str(submission.subreddit)+ ' '+str(submission.score)+ ' '+str(get_time(submission)) + '\n')
-
-crawl_sub('pics')
+subreddits = k.get_subreddits(20)
+for sub in subreddits:
+    crawl_sub(sub)
