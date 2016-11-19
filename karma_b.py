@@ -3,10 +3,11 @@ from bs4 import BeautifulSoup
 import datetime
 from itertools import chain
 import karma as k
+import urllib
 
 
 MIN_SCORE = 100 # the default minimum score before it is downloaded
-image_limit = 500
+image_limit = 100
 
 
 imgurUrlPattern = re.compile(r'(http://i.imgur.com/(.*))(\?.*)?')
@@ -67,6 +68,13 @@ def crawl_sub(targetSubreddit):
     for submission in submissions:
         # Check for all the cases where we will skip a submission:
         if "imgur.com/" not in submission.url:
+            #non imgur but is an image
+            if submission.url.endswith(".jpg") or submission.url.endswith(".png"):
+                #f = urllib.urlopen(submission.url)
+                #name of image
+                localFileName = str(submission.subreddit) + str(count)
+                count  = downloadImage(targetSubreddit, submission.url, localFileName, count, label, submission)
+
             continue # skip non-imgur submissions
         if submission.score < MIN_SCORE:
             continue # skip submissions that haven't even reached 100 (thought this should be rare if we're collecting the "hot" submission)
