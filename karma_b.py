@@ -1,12 +1,15 @@
 import re, praw, requests, os, glob, sys
 from bs4 import BeautifulSoup
 import datetime
+from itertools import chain
+
 
 MIN_SCORE = 100 # the default minimum score before it is downloaded
+image_limit = 100
 
 
 imgurUrlPattern = re.compile(r'(http://i.imgur.com/(.*))(\?.*)?')
-targetSubreddit = 'all'
+targetSubreddit = 'pics'
 if not os.path.exists(targetSubreddit):
     os.makedirs(targetSubreddit)
 
@@ -28,9 +31,13 @@ def get_time(submission):
     #time is in UNIX
     return time
 
+
 # Connect to reddit and download the subreddit front page
 r = praw.Reddit(user_agent='test app mine') # Note: Be sure to change the user-agent to something unique.
-submissions = r.get_subreddit(targetSubreddit).get_top_from_all(limit=100)
+#get top submissions
+submissions = r.get_subreddit(targetSubreddit).get_top_from_day(limit=image_limit)
+#get new submissions
+submissions = chain(submissions, r.get_subreddit(targetSubreddit).get_controversial_from_day(limit=image_limit))
 # Or use one of these functions:
 #                                       .get_top_from_year(limit=25)
 #                                       .get_top_from_month(limit=25)
@@ -43,6 +50,7 @@ submissions = r.get_subreddit(targetSubreddit).get_top_from_all(limit=100)
 #print vars(next(submissions))
 stats = []
 count = 1
+label = open(targetSubreddit+'/'+targetSubreddit+'.txt', 'w')
 for submission in submissions:
     # Check for all the cases where we will skip a submission:
     if "imgur.com/" not in submission.url:
@@ -105,4 +113,9 @@ for submission in submissions:
         downloadImage(imageUrl, localFileName)
     else:
         continue
+
+    #write to label
+    label.write(str(submission.subreddit)+ ' '+str(submission.score)+ ' '+str(submission.over_18)+ ' ' +str(get_time(submission)) + '\n')
     stats.append([str(submission.subreddit), submission.score, submission.over_18, get_time(submission)])
+
+

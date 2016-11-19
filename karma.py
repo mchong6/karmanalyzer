@@ -7,5 +7,5 @@ response = requests.post("https://www.reddit.com/api/v1/access_token", auth=clie
 token = response.json()["access_token"]
 print token
 headers = {"Authorization": "bearer "+token, "User-Agent": "ChangeMeClient/0.1 by YourUsername"}
-response = requests.get("https://oauth.reddit.com/subreddits/popular", headers=headers)
+response = requests.get("https://oauth.reddit.com/subreddits/popular/?limit=1", headers=headers)
 print response.json()
