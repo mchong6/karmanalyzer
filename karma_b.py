@@ -7,7 +7,7 @@ import urllib
 
 
 MIN_SCORE = 100 # the default minimum score before it is downloaded
-image_limit = 100
+image_limit = 1000
 
 
 imgurUrlPattern = re.compile(r'(http://i.imgur.com/(.*))(\?.*)?')
@@ -18,8 +18,8 @@ if not os.path.exists(parent_dir):
 
 
 def downloadImage(targetSubreddit, imageUrl, localFileName, count, label, submission):
-    #ignore gifs
-    if ".gif" in imageUrl:
+    #ignore non png and jpg
+    if not (imageUrl.endswith(".jpg") or imageUrl.endswith(".png")):
         return count
     response = requests.get(imageUrl)
     if response.status_code == 200:
@@ -30,11 +30,12 @@ def downloadImage(targetSubreddit, imageUrl, localFileName, count, label, submis
             #write to label
             label.write(str(submission.score)+ ' '+str(get_time(submission)) + '\n')
             return count+1
+    return count
 
 def get_time(submission):
     time = submission.created_utc
-    #time is in UNIX
-    return time
+    #time is in UNIX convert to hours
+    return datetime.datetime.fromtimestamp(time).strftime('%H')
 
 
 # Connect to reddit and download the subreddit front page
@@ -49,9 +50,9 @@ def crawl_sub(targetSubreddit):
         os.makedirs(parent_dir+'/'+targetSubreddit)
 
     #get top submissions
-    submissions = r.get_subreddit(targetSubreddit).get_top_from_day(limit=image_limit)
+    submissions = r.get_subreddit(targetSubreddit).get_top_from_week(limit=image_limit)
     #get new submissions
-    submissions = chain(submissions, r.get_subreddit(targetSubreddit).get_controversial_from_day(limit=image_limit))
+    submissions = chain(submissions, r.get_subreddit(targetSubreddit).get_controversial_from_week(limit=image_limit))
     # Or use one of these functions:
     #                                       .get_top_from_year(limit=25)
     #                                       .get_top_from_month(limit=25)
@@ -91,6 +92,7 @@ def crawl_sub(targetSubreddit):
             matches = soup.select('.album-view-image-link a')
             for match in matches:
                 imageUrl = match['href']
+                print imageUrl
                 if '?' in imageUrl:
                     imageFile = imageUrl[imageUrl.rfind('/') + 1:imageUrl.rfind('?')]
                 else:
@@ -133,6 +135,6 @@ def crawl_sub(targetSubreddit):
             localFileName = str(submission.subreddit) + str(count)
             count = downloadImage(targetSubreddit, imageUrl, localFileName, count, label, submission)
 
-subreddits = k.get_subreddits(20)
+subreddits = k.get_subreddits(25)
 for sub in subreddits:
     crawl_sub(sub)
