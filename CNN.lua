@@ -13,7 +13,7 @@ torch.manualSeed(300)
 
 opt = lapp[[
    -b,--batchSize             (default 10)          batch size
-   -r,--learningRate          (default 1e-6)        learning rate
+   -r,--learningRate          (default 1e-5)        learning rate
    --learningRateDecay        (default 1.0e-7)      learning rate decay
    --weightDecay              (default 0.0005)      weightDecay
    -m,--momentum              (default 0.9)         momentum
@@ -51,47 +51,35 @@ ConvBNReLU(64,128):add(nn.Dropout(0.4))
 vgg:add(MaxPooling(2,2,2,2):ceil())
 ConvBNReLU(128,256):add(nn.Dropout(0.4))
 vgg:add(MaxPooling(2,2,2,2):ceil())
+--print(#vgg:cuda():forward(torch.CudaTensor(5,3,32,32)))
 
 
-vgg:add(nn.View(256*18*18))
-vgg:add(nn.Linear(256*18*18, 1000))
+vgg:add(nn.View(256*4*4))
+vgg:add(nn.Linear(256*4*4, 10000))
 vgg:add(nn.ReLU(true))
-vgg:add(nn.Linear(1000, 10))
+vgg:add(nn.Linear(10000, 1))
 vgg:add(nn.ReLU(true))
-print(#vgg:cuda():forward(torch.CudaTensor(5,3,144,144)))
-
---[[vgg:add(nn.Dropout(0.5))
-vgg:add(nn.Linear(512,512))
-vgg:add(nn.BatchNormalization(512))
-vgg:add(nn.ReLU(true))
-vgg:add(nn.Dropout(0.5))
-vgg:add(nn.Linear(512,10))]]
 
 
---[[local fullyconnected = nn.Sequential()
-fullyconnected:add(nn.Linear(2, 120))
-fullyconnected:add(nn.ReLU(true))
-fullyconnected:add(nn.Linear(120, 60))
-fullyconnected:add(nn.ReLU(true))
-fullyconnected:add(nn.Linear(60, 1))]]
-
-
-local combination = nn.Sequential()
-combination:add(nn.Linear(12, 120))
+--[[local combination = nn.Sequential()
+combination:add(nn.Linear(10, 1000))
 combination:add(nn.ReLU(true))
-combination:add(nn.Linear(120, 60))
+combination:add(nn.Linear(1000, 4000))
 combination:add(nn.ReLU(true))
-combination:add(nn.Linear(60, 1))
+combination:add(nn.Linear(4000, 1000))
 combination:add(nn.ReLU(true))
+combination:add(nn.Linear(1000, 1))
+combination:add(nn.ReLU(true))]]
 
-local pl = nn.ParallelTable()
+--[[local pl = nn.ParallelTable()
 pl:add(vgg)
-pl:add(nn.Identity())
+pl:add(nn.Identity())]]
 
 local model = nn.Sequential()
-model:add(pl)
-model:add(nn.JoinTable(2))
-model:add(combination)
+--model:add(pl)
+--model:add(nn.JoinTable(2))
+model:add(vgg)
+--model:add(combination)
 
 
 print(model)
@@ -134,11 +122,13 @@ function train()
 		local feval = function(x)
 			if x ~= parameters then parameters:copy(x) end
 			gradParameters:zero()    
-			local outputs = model:forward({inputs, inputs_feature})
+			--local outputs = model:forward({inputs, inputs_feature})
+			local outputs = model:forward(inputs)
 			local f = criterion:forward(outputs, targets)
 			err = err + f
-			local df_do, grad_Decor = criterion:backward(outputs, targets)
-			model:backward({inputs, inputs_feature}, df_do)			
+			local df_do = criterion:backward(outputs, targets)
+			--model:backward({inputs, inputs_feature}, df_do)			
+			model:backward(inputs, df_do)			
             --confusion:batchAdd(outputs, targets)
 			return f ,gradParameters
 		end
@@ -187,7 +177,7 @@ for i=1, opt.max_epoch do
     --test()
 	--save graph every 50 epoch
 	if i % 10 == 0 then
-		torch.save('model.net', model:get(3):clearState())
+		torch.save('model.net', model)
 	end
 end
 --plot graph

@@ -10,7 +10,7 @@ images = nil
 labels = nil
 feature_dir = nil
 feature_time = nil
-local eye = 144
+local eye = 32
 
 function img_resize(path)
     -- resize input/label
