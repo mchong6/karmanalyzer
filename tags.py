@@ -11,7 +11,7 @@ To do so, run Python and type the following:
 """
 
 # getTags()
-# Input: a submission ID from reddit
+# Input: a praw submission object from reddit
 # Output: a dict - key is a word (a word from all the comments)
 #                - value is the frequency of that word
 # Words have been stripped of punctuation and converted to lowercase
