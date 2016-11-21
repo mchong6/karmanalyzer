@@ -1,4 +1,5 @@
 import praw
+import string
 import nltk.probability as prob
 from nltk.corpus import stopwords
 
@@ -15,15 +16,7 @@ To do so, run Python and type the following:
 #                - value is the frequency of that word
 # Words have been stripped of punctuation and converted to lowercase
 
-def getTags(my_submission_id):
-    print '\nPlease check that you have downloaded the nltk \'stopwords\' module.'
-    print 'If you have not, run Python and type the following:'
-    print '1. import nltk'
-    print '2. nltk.download(\'stopwords\')'
-    raw_input('Press ENTER to continue or CTRL-C to exit...')
-
-    r = praw.Reddit('unique-user-id')
-    submission = r.get_submission(submission_id=my_submission_id)
+def getTags(submission):
     submission.replace_more_comments(limit=None, threshold=0)
 
     all_comments = submission.comments
