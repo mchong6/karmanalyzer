@@ -9,11 +9,10 @@ require 'gnuplot'
 local Provider = torch.class 'Provider'
 
 torch.setdefaulttensortype('torch.FloatTensor')
-torch.manualSeed(300)
 
 opt = lapp[[
-   -b,--batchSize             (default 10)          batch size
-   -r,--learningRate          (default 1e-5)        learning rate
+   -b,--batchSize             (default 100)          batch size
+   -r,--learningRate          (default 5e-8)        learning rate
    --learningRateDecay        (default 1.0e-7)      learning rate decay
    --weightDecay              (default 0.0005)      weightDecay
    -m,--momentum              (default 0.9)         momentum
@@ -44,12 +43,12 @@ end
 -- Will use "ceil" MaxPooling because we want to save as much feature space as we can
 local MaxPooling = nn.SpatialMaxPooling
 
-ConvBNReLU(3,32):add(nn.Dropout(0.3))
+ConvBNReLU(3,32)
 ConvBNReLU(32,64)
 vgg:add(MaxPooling(2,2,2,2):ceil())
-ConvBNReLU(64,128):add(nn.Dropout(0.4))
+ConvBNReLU(64,128)
 vgg:add(MaxPooling(2,2,2,2):ceil())
-ConvBNReLU(128,256):add(nn.Dropout(0.4))
+ConvBNReLU(128,256)
 vgg:add(MaxPooling(2,2,2,2):ceil())
 --print(#vgg:cuda():forward(torch.CudaTensor(5,3,32,32)))
 
@@ -75,19 +74,20 @@ combination:add(nn.ReLU(true))]]
 pl:add(vgg)
 pl:add(nn.Identity())]]
 
-local model = nn.Sequential()
+--local model = nn.Sequential()
 --model:add(pl)
 --model:add(nn.JoinTable(2))
-model:add(vgg)
+--model:add(vgg)
 --model:add(combination)
 
 
-print(model)
-model = model:cuda()
+--print(model)
+--model = model:cuda()
+model = vgg:cuda()
 ----------------------------------------
 
 parameters,gradParameters = model:getParameters()
-criterion = nn.MSECriterion():cuda()
+criterion = nn.AbsCriterion():cuda()
 
 optimState = {
     learningRate = opt.learningRate,
@@ -124,6 +124,7 @@ function train()
 			gradParameters:zero()    
 			--local outputs = model:forward({inputs, inputs_feature})
 			local outputs = model:forward(inputs)
+            print(outputs)
 			local f = criterion:forward(outputs, targets)
 			err = err + f
 			local df_do = criterion:backward(outputs, targets)
@@ -147,21 +148,6 @@ function test()
     confusion:batchAdd(predict, test_labels)
     confusion:updateValids()
     print(tostring(confusion))
-    --[[
-	--get index of the maximum output
-    local value, index = predict:max(2) 
-    for i = 1, predict:size(1) do
-        local prediction = index[i][1]
-        --index 10 is for 0
-        if prediction == 10 then
-            prediction = 0
-        end
-        if prediction == test_labels[i] then
-            correct = correct + 1
-        elseif epoch == 50 then
-            image.save('./wrong/wrong_pic'..'_'..test_labels[i]..'_'..prediction..'.jpg', test_images[i])
-        end
-    end]]
     print('Accuracy: ', confusion.totalValid*100)
     --print('Test accuracy:', correct / 1000)
 	if accuracy == nil then
